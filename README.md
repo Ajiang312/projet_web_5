@@ -82,7 +82,7 @@ docker-compose up --build
 
 ---
 
-## 🧠 Structure du projet
+## 🧐 Structure du projet
 
 ```
 full-app/
@@ -134,7 +134,7 @@ make db-reset       # Supprime + recrée la base
 
 ---
 
-## 📅 Prochaines étapes
+## 🗓️ Prochaines étapes
 
 1. Définissez les routes de votre API Flask
 2. Construisez votre UI React
@@ -147,29 +147,44 @@ Bon développement ! 🚀
 
 Utilisez ces comptes pour tester les différentes fonctionnalités de l'application :
 
-*   **Utilisateur standard :** Email: `utilisateur@exemple.com`, Mot de passe: `motdepasse`
-*   **Administrateur :** Email: `admin@exemple.com`, Mot de passe: `motdepasseadmin`
+| Rôle           | Email                 | Mot de passe |
+| -------------- | --------------------- | ------------ |
+| Utilisateur    | `Test123@gmail.com`   | `Test123`    |
+| Administrateur | `admintest@gmail.com` | `Admin123`   |
 
-(Note: Veuillez remplacer ces identifiants génériques par les véritables comptes que vous avez créés pour les tests.)
+---
 
-## 🗺️ Routes API principales
+## 🧰 Répartition des tâches (Projet à 6)
+
+| Membre     | Rôle principal                  | Détails                                                                  |
+| ---------- | ------------------------------- | ------------------------------------------------------------------------ |
+| **Romain** | Lead Développeur Full-Stack     | Intégration backend-frontend, réservations, retards, file d'attente FIFO |
+| Antoine    | Développeur Backend             | Modèles SQLAlchemy, logique emprunt/retour, routes JWT                   |
+| Roman      | Intégration Frontend / UI/UX    | Pages catalogue, historique, composants React, appels API                |
+| Célina     | Base de données & Docker        | Migrations, PostgreSQL, volumes, Makefile                                |
+| Zoé        | Tests & Cas d’usage utilisateur | Scénarios de test, Postman, validation des routes et permissions         |
+| Paul       | Rédaction du rapport & README   | Documentation, captures d'écran, schéma de BDD                           |
+
+---
+
+## 🗾️ Routes API principales
 
 Voici une liste des routes API principales disponibles :
 
-*   `POST /api/auth/register` : Inscription d'un nouvel utilisateur.
-*   `POST /api/auth/login` : Connexion et obtention d'un token JWT.
-*   `GET /api/auth/me` : Obtenir les informations de l'utilisateur connecté (requiert JWT).
-*   `GET /api/books/` : Lister tous les livres avec leur disponibilité.
-*   `GET /api/books/<int:book_id>` : Obtenir les détails d'un livre spécifique.
-*   `POST /api/books/` : Créer un nouveau livre (Admin requis).
-*   `POST /api/books/<int:book_id>/copies` : Ajouter des exemplaires à un livre (Admin requis).
-*   `DELETE /api/books/<int:book_id>/copies/<int:copy_id>` : Supprimer un exemplaire d'un livre (Admin requis).
-*   `GET /api/borrowings/` : Lister les emprunts de l'utilisateur connecté.
-*   `POST /api/borrowings/<int:copy_id>` : Emprunter un exemplaire spécifique.
-*   `PUT /api/borrowings/<int:borrowing_id>/return` : Retourner un emprunt spécifique.
-*   `GET /api/borrowings/overdue` : Lister tous les emprunts en retard (Admin requis).
-*   `GET /api/borrowings/penalties` : Obtenir le total des pénalités et les livres en retard pour l'utilisateur connecté.
-*   `GET /api/reservations/` : Lister les réservations de l'utilisateur connecté.
-*   `POST /api/reservations/<int:book_id>` : Créer une réservation pour un livre.
-*   `DELETE /api/reservations/<int:reservation_id>` : Annuler une réservation spécifique.
-*   `GET /api/reservations/book/<int:book_id>` : Lister les réservations pour un livre spécifique (Admin requis).
+* `POST /api/auth/register` : Inscription d'un nouvel utilisateur.
+* `POST /api/auth/login` : Connexion et obtention d'un token JWT.
+* `GET /api/auth/me` : Obtenir les informations de l'utilisateur connecté (requiert JWT).
+* `GET /api/books/` : Lister tous les livres avec leur disponibilité.
+* `GET /api/books/<int:book_id>` : Obtenir les détails d'un livre spécifique.
+* `POST /api/books/` : Créer un nouveau livre (Admin requis).
+* `POST /api/books/<int:book_id>/copies` : Ajouter des exemplaires à un livre (Admin requis).
+* `DELETE /api/books/<int:book_id>/copies/<int:copy_id>` : Supprimer un exemplaire d'un livre (Admin requis).
+* `GET /api/borrowings/` : Lister les emprunts de l'utilisateur connecté.
+* `POST /api/borrowings/<int:copy_id>` : Emprunter un exemplaire spécifique.
+* `PUT /api/borrowings/<int:borrowing_id>/return` : Retourner un emprunt spécifique.
+* `GET /api/borrowings/overdue` : Lister tous les emprunts en retard (Admin requis).
+* `GET /api/borrowings/penalties` : Obtenir le total des pénalités et les livres en retard pour l'utilisateur connecté.
+* `GET /api/reservations/` : Lister les réservations de l'utilisateur connecté.
+* `POST /api/reservations/<int:book_id>` : Créer une réservation pour un livre.
+* `DELETE /api/reservations/<int:reservation_id>` : Annuler une réservation spécifique.
+* `GET /api/reservations/book/<int:book_id>` : Lister les réservations pour un livre spécifique (Admin requis).

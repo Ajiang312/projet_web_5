@@ -7,7 +7,7 @@ function Books() {
     const [loading, setLoading] = useState(null)
 
     useEffect(() => {
-        fetch('http://127.0.0.1:5009/books')
+        fetch('http://localhost:5009/api/books/')
         .then(res => res.json())
         .then(data => setBooks(data))
         .finally(() => setLoading(false))

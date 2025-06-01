@@ -1,25 +1,24 @@
-
 services:
-  db_esme:
-    image: postgres:13
-    container_name: db_esme
-    restart: always
-    environment:
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mot_de_passe
-      POSTGRES_DB: esme_inge
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+#  db_esme:
+#    image: postgres:13
+#    container_name: db_esme
+#    restart: always
+#    environment:
+#      POSTGRES_USER: myuser
+#      POSTGRES_PASSWORD: mot_de_passe
+#      POSTGRES_DB: esme_inge
+#    ports:
+#      - "5433:5432"
+#    volumes:
+#      - postgres_data:/var/lib/postgresql/data
 
   flask_app_esme:
     build: .
     container_name: flask_app_esme
-    depends_on:
-      - db_esme
+#    depends_on:
+#      - db_esme
     environment:
-      - DATABASE_URL=postgresql://myuser:mot_de_passe@db_esme:5432/esme_inge
+      - DATABASE_URL=postgresql://myuser:mot_de_passe@host.docker.internal:5432/esme_inge
     ports:
       - "5009:5000"
     volumes:

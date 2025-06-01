@@ -1,84 +1,118 @@
 from flask import Blueprint, request, jsonify
-from models import db, Book
-from datetime import datetime
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from models import db, Book, Copy, User, Borrowing, Reservation
+from sqlalchemy import func
 from flask_cors import CORS
 
 books_bp = Blueprint('books', __name__)
 
 CORS(books_bp, origins='*')
-# 🔹 Récupérer tous les livres
-@books_bp.route('/books', methods=['GET'])
+
+@books_bp.route('/', methods=['GET'])
 def get_books():
     books = Book.query.all()
-    return jsonify([
-        {'id': b.id, 'title': b.title, 'author': b.author, 'published_at': b.published_at.strftime('%Y-%m-%d') if b.published_at else None}
-        for b in books
-    ])
+    return jsonify([{
+        'id': book.id,
+        'title': book.title,
+        'author': book.author,
+        'published_at': book.published_at.isoformat() if book.published_at else None,
+        'description': book.description,
+        'available_copies': len([copy for copy in book.copies if copy.is_available]),
+        'total_copies': len(book.copies)
+    } for book in books]), 200
 
-# 🔹 Récupérer un livre par ID
-@books_bp.route('/books/<int:id>', methods=['GET'])
-def get_book(id):
-    book = Book.query.get(id)
-    if not book:
-        return jsonify({'error': 'Book not found'}), 404
+@books_bp.route('/<int:book_id>', methods=['GET'])
+def get_book(book_id):
+    book = Book.query.get_or_404(book_id)
     return jsonify({
         'id': book.id,
         'title': book.title,
         'author': book.author,
-        'published_at': book.published_at.strftime('%Y-%m-%d') if book.published_at else None
-    })
+        'published_at': book.published_at.isoformat() if book.published_at else None,
+        'description': book.description,
+        'available_copies': len([copy for copy in book.copies if copy.is_available]),
+        'total_copies': len(book.copies),
+        'available_copy_ids': [copy.id for copy in book.copies if copy.is_available]
+    }), 200
 
-# 🔹 Ajouter un livre
-@books_bp.route('/books', methods=['POST'])
-def add_book():
+@books_bp.route('/', methods=['POST'])
+@jwt_required()
+def create_book():
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    
+    if not user.is_admin:
+        return jsonify({'error': 'Unauthorized'}), 403
+    
     data = request.get_json()
-
-    if not data or 'title' not in data or 'author' not in data:
-        return jsonify({'error': 'Invalid data, title and author are required'}), 400
-
-    published_at = None
-    if 'published_at' in data:
-        try:
-            published_at = datetime.strptime(data['published_at'], '%Y-%m-%d')
-        except ValueError:
-            return jsonify({'error': 'Invalid date format, expected YYYY-MM-DD'}), 400
-
-    book = Book(title=data['title'], author=data['author'], published_at=published_at)
+    book = Book(
+        title=data['title'],
+        author=data['author'],
+        published_at=data.get('published_at'),
+        description=data.get('description')
+    )
+    
     db.session.add(book)
     db.session.commit()
-    return jsonify({'message': 'Book added successfully', 'id': book.id}), 201
+    
+    # Create initial copies if specified
+    num_copies = data.get('num_copies', 1)
+    for _ in range(num_copies):
+        copy = Copy(book=book)
+        db.session.add(copy)
+    
+    db.session.commit()
+    
+    return jsonify({
+        'id': book.id,
+        'title': book.title,
+        'author': book.author,
+        'published_at': book.published_at.isoformat() if book.published_at else None,
+        'description': book.description,
+        'available_copies': num_copies,
+        'total_copies': num_copies
+    }), 201
 
-# 🔹 Mettre à jour un livre
-@books_bp.route('/books/<int:id>', methods=['PUT'])
-def update_book(id):
-    book = Book.query.get(id)
-    if not book:
-        return jsonify({'error': 'Book not found'}), 404
-
+@books_bp.route('/<int:book_id>/copies', methods=['POST'])
+@jwt_required()
+def add_copies(book_id):
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    
+    if not user.is_admin:
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    book = Book.query.get_or_404(book_id)
     data = request.get_json()
-    if not data:
-        return jsonify({'error': 'No data provided'}), 400
-
-    if 'title' in data:
-        book.title = data['title']
-    if 'author' in data:
-        book.author = data['author']
-    if 'published_at' in data:
-        try:
-            book.published_at = datetime.strptime(data['published_at'], '%Y-%m-%d')
-        except ValueError:
-            return jsonify({'error': 'Invalid date format, expected YYYY-MM-DD'}), 400
-
+    num_copies = data.get('num_copies', 1)
+    
+    for _ in range(num_copies):
+        copy = Copy(book=book)
+        db.session.add(copy)
+    
     db.session.commit()
-    return jsonify({'message': 'Book updated successfully'})
+    
+    return jsonify({
+        'message': f'Added {num_copies} copies to book {book.title}',
+        'total_copies': len(book.copies),
+        'available_copies': len([copy for copy in book.copies if copy.is_available])
+    }), 200
 
-# 🔹 Supprimer un livre
-@books_bp.route('/books/<int:id>', methods=['DELETE'])
-def delete_book(id):
-    book = Book.query.get(id)
-    if not book:
-        return jsonify({'error': 'Book not found'}), 404
-
-    db.session.delete(book)
+@books_bp.route('/<int:book_id>/copies/<int:copy_id>', methods=['DELETE'])
+@jwt_required()
+def remove_copy(book_id, copy_id):
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    
+    if not user.is_admin:
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    copy = Copy.query.filter_by(id=copy_id, book_id=book_id).first_or_404()
+    
+    if not copy.is_available:
+        return jsonify({'error': 'Cannot remove a copy that is currently borrowed'}), 400
+    
+    db.session.delete(copy)
     db.session.commit()
-    return jsonify({'message': 'Book deleted successfully'})
+    
+    return jsonify({'message': 'Copy removed successfully'}), 200

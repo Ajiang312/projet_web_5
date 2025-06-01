@@ -12,6 +12,7 @@ from config import Config
 
 def create_app():
     app = Flask(__name__)
+    CORS(app, origins=["http://localhost:3000"], supports_credentials=True)
     
     # Configuration
     app.config.from_object(Config)
@@ -23,7 +24,8 @@ def create_app():
     with app.app_context():
         db.create_all()
     jwt = JWTManager(app)
-    CORS(app)
+
+
     
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')

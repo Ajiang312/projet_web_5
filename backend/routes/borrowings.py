@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from datetime import datetime
+from datetime import datetime, timedelta
 from models import db, Book, Copy, User, Borrowing, Reservation
 
 borrowings_bp = Blueprint('borrowings', __name__)
@@ -67,44 +67,74 @@ def borrow_book(copy_id):
 def return_book(borrowing_id):
     current_user_id = get_jwt_identity()
     borrowing = Borrowing.query.get_or_404(borrowing_id)
-    
+
     if borrowing.user_id != int(current_user_id):
         return jsonify({'error': 'Unauthorized'}), 403
-    
+
     if borrowing.returned_at:
         return jsonify({'error': 'Book already returned'}), 400
-    
+
+    # Marquer le livre comme retourné
     borrowing.returned_at = datetime.utcnow()
     borrowing.copy.is_available = True
-    
-    # Check if there are any reservations for this book
-    next_reservation = Reservation.query.filter_by(
-        book_id=borrowing.copy.book_id,
-        notified=False
-    ).order_by(Reservation.position).first()
-    
+
     response = {
         'message': 'Book returned successfully',
         'returned_at': borrowing.returned_at.isoformat()
     }
-    
+
+    next_reservation = Reservation.query.filter_by(
+        book_id=borrowing.copy.book_id,
+        notified=False
+    ).order_by(Reservation.position).first()
+
     if next_reservation:
-        next_reservation.notified = True
-        response['next_reservation'] = {
-            'user': {
-                'id': next_reservation.user.id,
-                'email': next_reservation.user.email,
-                'first_name': next_reservation.user.first_name,
-                'last_name': next_reservation.user.last_name
-            },
-            'position': next_reservation.position,
-            'created_at': next_reservation.created_at.isoformat()
-        }
-        # In a real application, you would send a notification here
-    
+        try:
+            print("Auto-borrow triggered for user:", next_reservation.user_id)
+            print("Borrowing copy ID:", borrowing.copy.id)
+
+            already_borrowed = Borrowing.query.filter_by(
+                copy_id=borrowing.copy.id,
+                user_id=next_reservation.user_id,
+                returned_at=None
+            ).first()
+
+            if already_borrowed:
+                print("User already has this copy")
+            else:
+                new_borrowing = Borrowing(
+                    copy_id=borrowing.copy.id,
+                    user_id=next_reservation.user_id,
+                    borrowed_at=datetime.utcnow(),
+                    due_date=datetime.utcnow() + timedelta(days=14)
+                )
+                db.session.add(new_borrowing)
+                db.session.delete(next_reservation)
+                borrowing.copy.is_available = False
+                
+                response['next_reservation'] = {
+                    'user': {
+                        'id': next_reservation.user.id,
+                        'email': next_reservation.user.email,
+                        'first_name': next_reservation.user.first_name,
+                        'last_name': next_reservation.user.last_name
+                    },
+                    'auto_borrowed': True
+                }
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            db.session.rollback()
+            return jsonify({
+                'error': 'Failed to auto-assign reserved copy',
+                'details': str(e)
+            }), 500
+
     db.session.commit()
-    
     return jsonify(response), 200
+
+
 
 @borrowings_bp.route('/overdue', methods=['GET'])
 @jwt_required()
